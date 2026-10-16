@@ -90,8 +90,11 @@ jobs:
       - name: Collect crash reports
         if: success() || failure()
         run: |
+          # 只收集本 App 的崩溃报告（文件名以进程名开头），系统进程的忽略
+          APP=$(find build/sim/Build/Products/Debug-iphonesimulator -maxdepth 1 -name "*.app" ! -name "*-Runner.app" | head -1)
+          NAME=$(basename "${APP:-none}" .app)
           mkdir -p "$OUT/logs/crashes"
-          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "*.ips" -o -name "*.crash" \) \
+          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "$NAME*.ips" -o -name "$NAME*.crash" \) \
             -exec cp {} "$OUT/logs/crashes/" \; 2>/dev/null || true
           if ls "$OUT/logs/crashes" | grep -q .; then
             echo "::warning::发现崩溃报告，见 ios-logs/crashes"; ls "$OUT/logs/crashes"
@@ -197,7 +200,7 @@ jobs:
           screencapture -x "$OUT/screenshots/macos.png"
           log show --last 2m --predicate "process == \"$NAME\"" --style compact > "$OUT/logs/macos-runtime.log" 2>&1 || true
           mkdir -p "$OUT/logs/crashes"
-          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "*.ips" -o -name "*.crash" \) \
+          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "$NAME*.ips" -o -name "$NAME*.crash" \) \
             -exec cp {} "$OUT/logs/crashes/" \; 2>/dev/null || true
           pgrep -f "$NAME.app/Contents/MacOS" >/dev/null && echo "App 正在运行" \
             || { echo "::warning::App 启动后没有在运行，可能崩溃了，看 crashes"; exit 1; }

@@ -8,11 +8,11 @@ Windows 不能运行 Xcode。这个模板把编译、测试、打包都放到 Gi
 | 产物（Actions 页面 Artifacts） | 内容 |
 |---|---|
 | `ios-app` | `MyApp-unsigned.ipa`（未签名，可用爱思助手 / Sideloadly 用自己的 Apple ID 签名安装）；配置了证书时还有 `MyApp-signed.ipa`（可直接装到描述文件登记过的 iPhone/iPad） |
-| `ios-screenshots` | App 在 iPhone 和 iPad 模拟器上启动后的截图 |
+| `ios-screenshots` | App 在 iPhone / iPad 模拟器上启动后的截图；`ui/` 下是界面测试每一步的截图；测试失败时 `test-attachments/` 里有失败瞬间的截图 |
 | `macos-app` | `MyApp-macOS.zip` / `.dmg`（ad-hoc 签名；首次打开需右键 →“打开”，或在“隐私与安全性”里允许） |
-| `*-logs` | 编译、测试、运行日志 |
+| `ios-logs` / `macos-screenshots-and-logs` | 编译和测试日志、`*-stdout.log`（App 里 `print()` 的输出）、`*-runtime.log`（系统日志）、`crashes/`（崩溃报告） |
 
-单元测试在 iPhone 模拟器和 macOS 上都会运行，测试失败则构建失败。
+单元测试（`Tests/`）在 iOS 和 macOS 上运行；界面自动化测试（`UITests/`，XCUITest）在 iPhone 和 iPad 模拟器上各跑一遍。测试失败则不产出 IPA，但截图和日志照样上传，方便排查。
 
 ## 新建一个 App
 
@@ -23,7 +23,7 @@ gh repo create 我的App名 --public --template AdamDashen666/apple-build-templa
 然后修改 `project.yml` 里的 `APP_NAME`、`DISPLAY_NAME`、`BUNDLE_ID_BASE`，在 `App/Sources` 里写代码，`App/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png` 换成自己的图标。
 
 - 两个平台共用 `App/Sources`；只属于某个平台的代码放 `App/iOS` 或 `App/macOS`，或用 `#if os(iOS)`。
-- 测试放 `Tests/`。
+- 单元测试放 `Tests/`；界面测试放 `UITests/`，继承 `UITestCase`，用 `accessibilityIdentifier` 找控件，`snap("步骤名")` 截图。
 
 ## 构建并下载
 

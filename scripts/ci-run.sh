@@ -26,7 +26,13 @@ fi
 [ -n "$RUN_ID" ] || { echo "找不到对应的构建任务"; exit 1; }
 
 echo "构建任务: $("$GH" run view "$RUN_ID" --json url -q .url)"
-"$GH" run watch "$RUN_ID" --interval 20 --exit-status >/dev/null
+# 轮询而不是 gh run watch：网络偶尔断开时 watch 会提前退出
+while :; do
+  STATE="$("$GH" run view "$RUN_ID" --json status,conclusion -q '.status + " " + .conclusion' 2>/dev/null)"
+  case "$STATE" in completed*) break ;; esac
+  sleep 30
+done
+[ "$STATE" = "completed success" ]
 STATUS=$?
 
 DEST="out/$RUN_ID"
