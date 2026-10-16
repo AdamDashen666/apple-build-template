@@ -17,7 +17,7 @@ jobs:
   ios:
     name: iOS / iPadOS
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -42,30 +42,62 @@ jobs:
           echo "IPAD_UDID=$IPAD" >> "$GITHUB_ENV"
           xcrun simctl list devices available | grep -E "$IPHONE|$IPAD"
 
-      - name: Unit tests (iPhone simulator)
+      - name: Unit + UI tests (iPhone & iPad simulators)
         run: |
           set -o pipefail
+          # TEST_RUNNER_ 前缀的变量会传给测试进程（去掉前缀），UI 测试的 snap() 把截图写到这里
+          export TEST_RUNNER_SCREENSHOT_DIR="$OUT/screenshots/ui"
           xcodebuild test -project App.xcodeproj -scheme App-iOS \
-            -destination "id=$IPHONE_UDID" -derivedDataPath build/sim \
-            -resultBundlePath "$OUT/logs/ios-tests.xcresult" \
+            -destination "id=$IPHONE_UDID" -destination "id=$IPAD_UDID" \
+            -derivedDataPath build/sim \
+            -resultBundlePath "$RUNNER_TEMP/ios-tests.xcresult" \
             2>&1 | tee "$OUT/logs/ios-test.log" | xcbeautify --renderer github-actions
 
-      - name: Launch on simulators and take screenshots
+      - name: Export test failure screenshots
+        if: failure()
         run: |
-          APP=$(find build/sim/Build/Products/Debug-iphonesimulator -maxdepth 1 -name "*.app" | head -1)
+          # XCUITest 失败时自动截的图存在 xcresult 里，导出来
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/ios-tests.xcresult" \
+            --output-path "$OUT/screenshots/test-attachments" || true
+
+      - name: Launch on simulators, capture output and screenshots
+        # 测试失败也照样启动截图，方便排查
+        if: success() || failure()
+        run: |
+          APP=$(find build/sim/Build/Products/Debug-iphonesimulator -maxdepth 1 -name "*.app" ! -name "*-Runner.app" | head -1)
+          [ -n "$APP" ] || { echo "::warning::没有编译出模拟器 App，跳过启动"; exit 0; }
+          NAME=$(basename "$APP" .app)
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           for pair in "iphone:$IPHONE_UDID" "ipad:$IPAD_UDID"; do
             name=${pair%%:*}; udid=${pair#*:}
             xcrun simctl boot "$udid" || true
             xcrun simctl bootstatus "$udid" -b
             xcrun simctl install "$udid" "$APP"
-            xcrun simctl launch "$udid" "$BUNDLE_ID"
+            # print() 输出写到 <设备>-stdout.log；NSUnbufferedIO 让输出立即落盘
+            SIMCTL_CHILD_NSUnbufferedIO=YES xcrun simctl launch --terminate-running-process \
+              --stdout="$OUT/logs/$name-stdout.log" --stderr="$OUT/logs/$name-stdout.log" \
+              "$udid" "$BUNDLE_ID"
             sleep 8
             xcrun simctl io "$udid" screenshot "$OUT/screenshots/$name.png"
-            # 如果 App 启动后崩溃，这里会看到崩溃日志
-            xcrun simctl spawn "$udid" log show --last 1m --predicate "process == \"$(basename "$APP" .app)\"" --style compact > "$OUT/logs/$name-runtime.log" 2>&1 || true
+            # 系统日志（os_log / Logger / 崩溃信息）
+            xcrun simctl spawn "$udid" log show --last 2m --predicate "process == \"$NAME\"" \
+              --style compact > "$OUT/logs/$name-runtime.log" 2>&1 || true
+            pgrep -f "$NAME.app/$NAME" >/dev/null \
+              || echo "::warning::$name 上 App 启动后没有在运行，可能崩溃了，看 ios-logs/crashes"
             xcrun simctl shutdown "$udid" || true
           done
+
+      - name: Collect crash reports
+        if: success() || failure()
+        run: |
+          mkdir -p "$OUT/logs/crashes"
+          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "*.ips" -o -name "*.crash" \) \
+            -exec cp {} "$OUT/logs/crashes/" \; 2>/dev/null || true
+          if ls "$OUT/logs/crashes" | grep -q .; then
+            echo "::warning::发现崩溃报告，见 ios-logs/crashes"; ls "$OUT/logs/crashes"
+          else
+            echo "没有崩溃报告"
+          fi
 
       - name: Build device app (unsigned)
         run: |
@@ -96,7 +128,7 @@ jobs:
 
       - name: Upload iOS app
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ios-app
           path: ${{ env.OUT }}/*.ipa
@@ -104,7 +136,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ios-screenshots
           path: ${{ env.OUT }}/screenshots
@@ -112,11 +144,10 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ios-logs
-          path: |
-            ${{ env.OUT }}/logs/*.log
+          path: ${{ env.OUT }}/logs
           if-no-files-found: ignore
 
   macos:
@@ -154,17 +185,26 @@ jobs:
           ditto -c -k --keepParent "$APP" "$OUT/$NAME-macOS.zip"
           hdiutil create -volname "$NAME" -srcfolder "$APP" -ov -format UDZO "$OUT/$NAME-macOS.dmg"
 
-      - name: Launch and screenshot
+      - name: Launch, capture output and screenshot
         continue-on-error: true
         run: |
-          open "$APP"
+          NAME=$(basename "$APP" .app)
+          # 直接运行可执行文件，print() 输出写到 macos-stdout.log
+          NSUnbufferedIO=YES "$APP/Contents/MacOS/$NAME" > "$OUT/logs/macos-stdout.log" 2>&1 &
           sleep 8
+          osascript -e "tell application \"$NAME\" to activate" || true
+          sleep 2
           screencapture -x "$OUT/screenshots/macos.png"
-          pgrep -f "$(basename "$APP")/Contents/MacOS" >/dev/null && echo "App 正在运行" || { echo "::warning::App 启动后没有在运行，可能崩溃了"; exit 1; }
+          log show --last 2m --predicate "process == \"$NAME\"" --style compact > "$OUT/logs/macos-runtime.log" 2>&1 || true
+          mkdir -p "$OUT/logs/crashes"
+          find ~/Library/Logs/DiagnosticReports -newer project.yml \( -name "*.ips" -o -name "*.crash" \) \
+            -exec cp {} "$OUT/logs/crashes/" \; 2>/dev/null || true
+          pgrep -f "$NAME.app/Contents/MacOS" >/dev/null && echo "App 正在运行" \
+            || { echo "::warning::App 启动后没有在运行，可能崩溃了，看 crashes"; exit 1; }
 
       - name: Upload macOS app
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: macos-app
           path: |
@@ -174,7 +214,7 @@ jobs:
 
       - name: Upload screenshots and logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: macos-screenshots-and-logs
           path: |
