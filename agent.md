@@ -11,9 +11,8 @@
 ## 当前状态
 - 已推送到 https://github.com/AdamDashen666/apple-build-template（公开，已设为 template）。
 - CI 已验证通过（run 38890325660）：iOS/macOS 单测通过，iPhone/iPad/macOS 截图正常，产出 unsigned IPA、macOS zip/dmg。iOS job 约 10 分钟，macOS 约 2 分钟。
-- 签名重签路径（resign-ipa.sh）尚未实测：用户还没运行 set-signing-secrets.ps1 上传证书。
+- 用户选择自签，交付物是未签名 IPA；云端重签路径（resign-ipa.sh）保留但未实测。
 - actions/upload-artifact@v5 仍报 Node 20 弃用警告（无害），可升到 v6。
 
 ## 下一步
-- 用户上传签名 Secrets 后跑一次构建，验证 *-signed.ipa 能装到其 iPhone。
 - 新 App 按全局技能 apple-build 的流程从模板创建。
