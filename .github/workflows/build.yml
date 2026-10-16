@@ -19,7 +19,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Environment
         run: |
@@ -96,7 +96,7 @@ jobs:
 
       - name: Upload iOS app
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ios-app
           path: ${{ env.OUT }}/*.ipa
@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ios-screenshots
           path: ${{ env.OUT }}/screenshots
@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ios-logs
           path: |
@@ -124,7 +124,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generate Xcode project
         run: |
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload macOS app
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-app
           path: |
@@ -174,7 +174,7 @@ jobs:
 
       - name: Upload screenshots and logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-screenshots-and-logs
           path: |

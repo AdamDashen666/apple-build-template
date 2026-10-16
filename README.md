@@ -17,10 +17,10 @@ Windows 不能运行 Xcode。这个模板把编译、测试、打包都放到 Gi
 ## 新建一个 App
 
 ```bash
-gh repo create 我的App名 --public --template <你的用户名>/apple-build-template --clone
+gh repo create 我的App名 --public --template AdamDashen666/apple-build-template --clone
 ```
 
-然后修改 `project.yml` 里的 `PRODUCT_NAME`、`DISPLAY_NAME`、`BUNDLE_ID_BASE`，在 `App/Sources` 里写代码，`App/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png` 换成自己的图标。
+然后修改 `project.yml` 里的 `APP_NAME`、`DISPLAY_NAME`、`BUNDLE_ID_BASE`，在 `App/Sources` 里写代码，`App/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png` 换成自己的图标。
 
 - 两个平台共用 `App/Sources`；只属于某个平台的代码放 `App/iOS` 或 `App/macOS`，或用 `#if os(iOS)`。
 - 测试放 `Tests/`。
