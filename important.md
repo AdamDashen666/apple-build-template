@@ -11,4 +11,5 @@
 - 模拟器型号随 runner 镜像变化，workflow 用 jq 动态挑选 iPhone/iPad，不要写死设备名。
 - macOS App 需要 ad-hoc 签名（CODE_SIGN_IDENTITY "-"），否则 Apple 芯片上无法运行。
 - 公开仓库的 Artifacts 任何登录用户都能下载（含已签名 IPA），敏感 App 需注意。
+- README 分英文（上）和中文（下）两部分，改功能说明时两边同步。
 - gh 安装在 C:\Program Files\GitHub CLI\gh.exe，可能不在旧 shell 的 PATH 里。

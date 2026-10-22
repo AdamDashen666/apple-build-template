@@ -1,3 +1,30 @@
+# apple-build-template
+
+Build, test and package iOS / iPadOS / macOS apps from a Windows PC, without a Mac. Write Swift locally, `git push`, and GitHub Actions macOS runners do the rest. (中文说明见下方。)
+
+## What each build produces
+
+- **iOS**: an unsigned IPA (`MyApp-unsigned.ipa`) that you sign with your own Apple ID (e.g. Sideloadly); also a signed IPA if you add a certificate.
+- **macOS**: an ad-hoc signed universal (arm64 + x86_64) app as `.zip` and `.dmg`.
+- **Tests**: unit tests on iOS and macOS; XCUITest UI tests on both an iPhone and an iPad simulator. If tests fail, no IPA is produced, but screenshots and logs are still uploaded.
+- **Debugging output**: launch screenshots, a screenshot for every UI-test step, the app's `print()` output, system logs and the app's crash reports.
+
+## Quick start
+
+```bash
+gh repo create MyApp --public --template AdamDashen666/apple-build-template --clone
+```
+
+1. In `project.yml`, set `APP_NAME`, `DISPLAY_NAME` and `BUNDLE_ID_BASE`.
+2. Write shared code in `App/Sources` (platform-only code in `App/iOS` or `App/macOS`) and replace `App/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png` with your icon.
+3. Run `bash scripts/ci-run.sh`. It pushes, waits for the build, downloads the artifacts to `out/<run id>/`, and prints the failing lines if the build breaks.
+
+The Xcode project is generated on CI from `project.yml` by XcodeGen, so you never need Xcode locally. Optional cloud signing: `scripts\set-signing-secrets.ps1` stores your `.p12` certificate and `.mobileprovision` profile in GitHub Secrets.
+
+macOS runners are free and unlimited for public repositories; private repositories get about 200 macOS minutes a month.
+
+---
+
 # 苹果打包模板（在 Windows 上做 iOS / iPadOS / macOS App）
 
 Windows 不能运行 Xcode。这个模板把编译、测试、打包都放到 GitHub Actions 的 macOS 机器上执行：
@@ -46,3 +73,7 @@ powershell -ExecutionPolicy Bypass -File scripts\set-signing-secrets.ps1
 ## 免费额度
 
 公开仓库使用 macOS 构建机免费且不限时长；私有仓库每月只有约 200 分钟 macOS 额度。
+
+## License / 许可证
+
+[MIT](LICENSE)
